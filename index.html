@@ -48,8 +48,16 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(1.7rem,6vw,2.4rem)
 .btn.primary{background:var(--c);color:var(--surface)}
 .btn small{font-weight:500;opacity:.8}
 a:focus-visible,button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
-.section-label{font-family:var(--display);font-weight:700;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
-  padding:12px 18px 6px;border-top:1px solid var(--line);margin:0}
+details.detail{border-top:1px solid var(--line)}
+details.detail>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:48px;padding:10px 18px;font-family:var(--display);font-weight:700;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+details.detail>summary::-webkit-details-marker{display:none}
+details.detail>summary:hover{color:var(--c)}
+details.detail>summary:focus-visible{outline:3px solid var(--fg);outline-offset:-3px}
+.chev{width:12px;height:12px;flex:none;border-right:2.5px solid currentColor;border-bottom:2.5px solid currentColor;transform:rotate(45deg) translate(-2px,-2px)}
+details.detail[open]>summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
+details.detail[open]>summary{color:var(--c)}
+@media (prefers-reduced-motion:no-preference){.chev{transition:transform .15s}}
 .hint{font-size:.85rem;color:var(--muted);padding:0 18px 8px;margin:0}
 ol.stops{list-style:none;margin:0;padding:0 18px 14px;display:flex;flex-direction:column}
 .stop{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)}
@@ -289,13 +297,15 @@ ROUTES.forEach(r=>{
       <a class="btn" href="${appleAll(r.stops)}" target="_blank" rel="noopener">Plans Apple <small>tout le trajet</small></a>
       <button class="btn" type="button" id="gpx-${r.id}">Fichier GPX <small>tout le trajet</small></button>
     </div>
-    <p class="section-label">Panneau par panneau</p>
+    <details class="detail" id="detail-${r.id}">
+    <summary><span>Panneau par panneau · ${r.stops.length}</span><span class="chev" aria-hidden="true"></span></summary>
     <p class="hint">Pour Waze, pour une autre appli de navigation, ou pour reprendre la tournée en cours de route.</p>
     <ol class="stops">${r.stops.map((s,i)=>`
       <li class="stop"><span class="num">${i+1}</span>
         <span class="name">${esc(s[0])}<span class="coord">${s[1].toFixed(5)}, ${s[2].toFixed(5)}</span></span>
         <span class="links"><a class="wz" href="${waze(s)}" target="_blank" rel="noopener">Waze</a><a href="${gOne(s)}" target="_blank" rel="noopener">Google</a><a class="open" href="${openWith(s)}">Ouvrir avec</a><button class="cp" type="button" data-c="${s[1]}, ${s[2]}">Copier</button></span>
-      </li>`).join("")}</ol>`;
+      </li>`).join("")}</ol>
+    </details>`;
   host.appendChild(el);
   el.querySelector(`#gpx-${r.id}`).addEventListener("click",()=>downloadGpx(r));
 });
