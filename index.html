@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Itinéraires affichage libre</title>
+<meta name="description" content="Tournées d'affichage libre de la circonscription 12 : navigation depuis votre position avec Google Maps, Plans, Waze ou l'appli de votre choix.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Une colonne de terrain : plan des tournées en tête, puis une fiche par itinéraire */
+:root{
+  --bg:#f5f6f4; --surface:#ffffff; --fg:#1b1e1c; --muted:#5d6560; --line:#dde1dc;
+  --r1:#1f62c9; --r1-soft:#e3ecfb; --r2:#d4501a; --r2-soft:#fbe9e1; --r3:#2b8a3e; --r3-soft:#e2f3e5;
+  --waze:#0b6f8c;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#121514; --surface:#1b1f1d; --fg:#e9ece9; --muted:#9aa39e; --line:#2c322f;
+  --r1:#6ea2f2; --r1-soft:#1a2a44; --r2:#f2875a; --r2-soft:#3a2219; --r3:#6fcf86; --r3-soft:#17301e;
+  --waze:#5cc3df; color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;
+  padding-top:max(28px,env(safe-area-inset-top,0px));padding-bottom:max(48px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:28px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(1.7rem,6vw,2.4rem);line-height:1.05;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.eyebrow{font-family:var(--display);font-weight:700;font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.lead{color:var(--muted);margin:10px 0 0;max-width:60ch}
+.map{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+.map svg{display:block;width:100%;height:auto;max-width:100%}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:8px;font-size:.85rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:18px;height:4px;border-radius:2px;display:inline-block}
+#routes{display:flex;flex-direction:column;gap:28px}
+.route{background:var(--surface);border:1px solid var(--line);border-top:6px solid var(--c);border-radius:10px;overflow:hidden}
+.route header{padding:18px 18px 4px;display:flex;flex-direction:column;gap:2px}
+.route h2{font-family:var(--display);font-weight:800;font-size:1.4rem;margin:0;color:var(--c)}
+.route .meta{color:var(--muted);font-size:.88rem;margin:0}
+.actions{display:flex;flex-wrap:wrap;gap:10px;padding:14px 18px 18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 16px;border-radius:8px;
+  font:inherit;font-weight:600;font-size:.95rem;text-decoration:none;border:1.5px solid var(--c);color:var(--c);background:transparent;flex:1 1 200px;text-align:center;cursor:pointer}
+.btn.primary{background:var(--c);color:var(--surface)}
+.btn small{font-weight:500;opacity:.8}
+a:focus-visible,button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.section-label{font-family:var(--display);font-weight:700;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+  padding:12px 18px 6px;border-top:1px solid var(--line);margin:0}
+.hint{font-size:.85rem;color:var(--muted);padding:0 18px 8px;margin:0}
+ol.stops{list-style:none;margin:0;padding:0 18px 14px;display:flex;flex-direction:column}
+.stop{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)}
+.stop:last-child{border-bottom:none}
+.num{width:28px;height:28px;border-radius:50%;background:var(--c-soft);color:var(--c);font-family:var(--display);font-weight:800;
+  display:grid;place-items:center;font-size:.85rem;font-variant-numeric:tabular-nums}
+.stop .name{font-weight:600;min-width:0}
+.stop .coord{display:block;font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;font-weight:400;user-select:all}
+.stop .links{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.stop .links a{font-size:.82rem;font-weight:600;text-decoration:none;padding:6px 10px;border-radius:6px;border:1px solid var(--line);color:var(--fg);white-space:nowrap}
+.stop .links a.wz{color:var(--waze);border-color:var(--waze)}
+.stop .links a.open{color:var(--c);border-color:var(--c)}
+.stop .links button.cp{font:inherit;font-size:.82rem;font-weight:600;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer;white-space:nowrap}
+.r1{--c:var(--r1);--c-soft:var(--r1-soft)}
+.r2{--c:var(--r2);--c-soft:var(--r2-soft)}
+.r3{--c:var(--r3);--c-soft:var(--r3-soft)}
+.notes{font-size:.88rem;color:var(--muted);display:flex;flex-direction:column;gap:6px;max-width:62ch}
+.notes p{margin:0}
+.notes strong{color:var(--fg)}
+@media (max-width:520px){
+  .stop{grid-template-columns:30px minmax(0,1fr)}
+  .stop .links{grid-column:2;justify-content:flex-start}
+  .stop .links a,.stop .links button.cp{padding:7px 12px}
+}
+@media (prefers-reduced-motion:no-preference){.btn{transition:transform .12s}.btn:active{transform:scale(.98)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <p class="eyebrow">Circonscription 12 · tournées d'affichage libre</p>
+    <h1>Itinéraires affichage libre</h1>
+    <p class="lead">Touchez un bouton : la navigation part de votre position actuelle et enchaîne les panneaux dans l'ordre.</p>
+  </div>
+
+  <div class="map">
+    <svg id="map" viewBox="0 0 640 400" role="img" aria-label="Plan des tournées"></svg>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div id="routes"></div>
+
+  <div class="notes">
+    <p><strong>Google Maps</strong> : Android, iPhone et ordinateur. Toutes les étapes sont chargées d'un coup.</p>
+    <p><strong>Plans (Apple)</strong> : iPhone avec iOS 18.4 ou plus récent.</p>
+    <p><strong>Ouvrir avec</strong> : sur Android avec Chrome, le téléphone propose les applis de cartes installées. Un seul panneau à la fois. Sur iPhone, le bouton ouvre Plans. Le navigateur de Murena bloque ce bouton : utilisez <strong>Copier</strong>, puis collez les coordonnées dans la recherche de Maps.</p>
+    <p><strong>Waze</strong> n'accepte qu'une destination par lien : suivez les boutons Waze panneau par panneau.</p>
+    <p><strong>Fichier GPX</strong> : le trajet complet pour OsmAnd, Organic Maps ou Maps de Murena (ajoutez « Ma position » comme premier arrêt).</p>
+  </div>
+</div>
+
+<script>
+/* Pour ajouter ou modifier un itinéraire : compléter cette liste, dans l'ordre de passage. */
+const ROUTES = [
+ {
+  "id": "tassin",
+  "name": "Itinéraire Tassin",
+  "cls": "r1",
+  "stops": [
+   [
+    "Panneau 12",
+    45.748164,
+    4.815853
+   ],
+   [
+    "Panneau 30",
+    45.76373,
+    4.799041
+   ],
+   [
+    "Panneau 31",
+    45.763931,
+    4.7956
+   ],
+   [
+    "Panneau 36",
+    45.764056,
+    4.793024
+   ],
+   [
+    "Panneau 33",
+    45.764623,
+    4.785303
+   ],
+   [
+    "Panneau 9",
+    45.764673,
+    4.782118
+   ],
+   [
+    "Panneau 34",
+    45.765338,
+    4.779097
+   ],
+   [
+    "Panneau 35",
+    45.763723,
+    4.774728
+   ],
+   [
+    "Panneau 6",
+    45.76512,
+    4.75602
+   ]
+  ]
+ },
+ {
+  "id": "st-foy",
+  "name": "Itinéraire St Foy",
+  "cls": "r2",
+  "stops": [
+   [
+    "Panneau 5",
+    45.748095,
+    4.800615
+   ],
+   [
+    "Panneau 1",
+    45.744046,
+    4.78358
+   ],
+   [
+    "Panneau 4",
+    45.733858,
+    4.779796
+   ],
+   [
+    "Panneau 2",
+    45.727759,
+    4.778514
+   ]
+  ]
+ },
+ {
+  "id": "mulatiere-tassin",
+  "name": "Itinéraire Mulatière/Tassin",
+  "cls": "r3",
+  "stops": [
+   [
+    "Panneau 11",
+    45.729426,
+    4.809989
+   ],
+   [
+    "Panneau 10",
+    45.726782,
+    4.816073
+   ],
+   [
+    "Panneau 13",
+    45.722027,
+    4.804046
+   ],
+   [
+    "Panneau 32",
+    45.717436,
+    4.777597
+   ],
+   [
+    "Panneau 39",
+    45.752418,
+    4.771547
+   ],
+   [
+    "Panneau 38",
+    45.75686,
+    4.784091
+   ],
+   [
+    "Panneau 8",
+    45.760974,
+    4.760173
+   ],
+   [
+    "Panneau 37",
+    45.761579,
+    4.759149
+   ],
+   [
+    "Panneau 7",
+    45.759604,
+    4.758292
+   ]
+  ]
+ }
+];
+
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+const c = s => s[1]+","+s[2];
+const esc = t => String(t).replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+function googleAll(st){
+  const d=st[st.length-1], w=st.slice(0,-1).map(c).join("%7C");
+  return "https://www.google.com/maps/dir/?api=1&destination="+c(d)+(w?"&waypoints="+w:"")+"&travelmode=driving&dir_action=navigate";
+}
+function appleAll(st){
+  const d=st[st.length-1];
+  return "https://maps.apple.com/directions?destination="+c(d)+st.slice(0,-1).map(s=>"&waypoint="+c(s)).join("")+"&mode=driving";
+}
+const waze = s => "https://waze.com/ul?ll="+s[1]+"%2C"+s[2]+"&navigate=yes";
+const gOne = s => "https://www.google.com/maps/dir/?api=1&destination="+c(s)+"&travelmode=driving&dir_action=navigate";
+/* Android : URL "intent:" de Chrome qui demande au système d'ouvrir un lien geo:.
+   Android propose alors les applis de cartes installées (sauf si une appli est déjà réglée par défaut). */
+const openWith = s => isIOS
+  ? "https://maps.apple.com/directions?destination="+c(s)+"&mode=driving"
+  : "intent://"+c(s)+"?q="+c(s)+"("+encodeURIComponent(s[0])+")#Intent;scheme=geo;action=android.intent.action.VIEW;end";
+
+function gpx(r){
+  const pt = (tag,s) => `<${tag} lat="${s[1]}" lon="${s[2]}"><name>${esc(s[0])}</name></${tag}>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Affichage libre" xmlns="http://www.topografix.com/GPX/1/1">
+<metadata><name>Affichage libre - ${esc(r.name)}</name></metadata>
+${r.stops.map(s=>pt("wpt",s)).join("\n")}
+<rte><name>${esc(r.name)}</name>
+${r.stops.map(s=>pt("rtept",s)).join("\n")}
+</rte>
+</gpx>`;
+}
+function downloadGpx(r){
+  const blob=new Blob([gpx(r)],{type:"application/gpx+xml"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=`affichage_libre_itineraire_${r.id}.gpx`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+
+const host=document.getElementById("routes");
+const legend=document.getElementById("legend");
+ROUTES.forEach(r=>{
+  legend.insertAdjacentHTML("beforeend",`<span><i style="background:var(--${r.cls})"></i>${esc(r.name)}</span>`);
+  const el=document.createElement("section");
+  el.className="route "+r.cls;
+  el.innerHTML=`
+    <header><h2>${esc(r.name)}</h2>
+      <p class="meta">${r.stops.length} panneaux · ${esc(r.stops[0][0])} → ${esc(r.stops[r.stops.length-1][0])}</p></header>
+    <div class="actions">
+      <a class="btn primary" href="${googleAll(r.stops)}" target="_blank" rel="noopener">Google Maps <small>tout le trajet</small></a>
+      <a class="btn" href="${appleAll(r.stops)}" target="_blank" rel="noopener">Plans Apple <small>tout le trajet</small></a>
+      <button class="btn" type="button" id="gpx-${r.id}">Fichier GPX <small>tout le trajet</small></button>
+    </div>
+    <p class="section-label">Panneau par panneau</p>
+    <p class="hint">Pour Waze, pour une autre appli de navigation, ou pour reprendre la tournée en cours de route.</p>
+    <ol class="stops">${r.stops.map((s,i)=>`
+      <li class="stop"><span class="num">${i+1}</span>
+        <span class="name">${esc(s[0])}<span class="coord">${s[1].toFixed(5)}, ${s[2].toFixed(5)}</span></span>
+        <span class="links"><a class="wz" href="${waze(s)}" target="_blank" rel="noopener">Waze</a><a href="${gOne(s)}" target="_blank" rel="noopener">Google</a><a class="open" href="${openWith(s)}">Ouvrir avec</a><button class="cp" type="button" data-c="${s[1]}, ${s[2]}">Copier</button></span>
+      </li>`).join("")}</ol>`;
+  host.appendChild(el);
+  el.querySelector(`#gpx-${r.id}`).addEventListener("click",()=>downloadGpx(r));
+});
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button.cp"); if(!b) return;
+  const txt=b.dataset.c;
+  const ok=()=>{b.textContent="Copié ✓";setTimeout(()=>b.textContent="Copier",2000)};
+  const fail=()=>{b.textContent=txt};
+  try{ navigator.clipboard ? navigator.clipboard.writeText(txt).then(ok,fail) : fail(); }catch(_){ fail(); }
+});
+legend.insertAdjacentHTML("beforeend","<span>Tracé à vol d'oiseau, pas la route réelle</span>");
+
+// Plan à l'échelle (projection équirectangulaire corrigée de la latitude)
+(function(){
+  const svg=document.getElementById("map"), W=640,H=400,P=34, ns="http://www.w3.org/2000/svg";
+  const all=ROUTES.flatMap(r=>r.stops);
+  const lat0=all.reduce((a,s)=>a+s[1],0)/all.length, k=Math.cos(lat0*Math.PI/180);
+  const xs=all.map(s=>s[2]*k), ys=all.map(s=>s[1]);
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const sc=Math.min((W-2*P)/((maxX-minX)||1e-6),(H-2*P)/((maxY-minY)||1e-6));
+  const ox=(W-(maxX-minX)*sc)/2, oy=(H-(maxY-minY)*sc)/2;
+  const X=s=>ox+(s[2]*k-minX)*sc, Y=s=>H-oy-(s[1]-minY)*sc;
+  ROUTES.forEach(r=>{
+    const col=`var(--${r.cls})`;
+    const pl=document.createElementNS(ns,"polyline");
+    pl.setAttribute("points",r.stops.map(s=>X(s)+","+Y(s)).join(" "));
+    pl.setAttribute("fill","none");pl.setAttribute("stroke-width","3");pl.setAttribute("stroke-linejoin","round");
+    pl.style.stroke=col; svg.appendChild(pl);
+    r.stops.forEach((s,i)=>{
+      const g=document.createElementNS(ns,"g");
+      const ci=document.createElementNS(ns,"circle");
+      ci.setAttribute("cx",X(s));ci.setAttribute("cy",Y(s));ci.setAttribute("r","14");ci.setAttribute("stroke-width","2.5");
+      ci.style.fill=col; ci.style.stroke="var(--surface)";
+      const t=document.createElementNS(ns,"text");
+      t.setAttribute("x",X(s));t.setAttribute("y",Y(s)+5);t.setAttribute("text-anchor","middle");
+      t.setAttribute("font-size","14");t.setAttribute("font-weight","700");t.setAttribute("font-family","Archivo, Arial, sans-serif");
+      t.style.fill="var(--surface)"; t.textContent=i+1;
+      const ti=document.createElementNS(ns,"title"); ti.textContent=`${r.name} · étape ${i+1} · ${s[0]}`;
+      g.append(ci,t,ti); svg.appendChild(g);
+    });
+  });
+})();
+</script>
+</body>
+</html>
